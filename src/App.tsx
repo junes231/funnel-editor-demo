@@ -9,10 +9,10 @@ import {
   getDocs,
   updateDoc,
   deleteDoc,
+ Firestore,
   query,
   where,
-  getDoc,
-  onSnapshot,  // 新增
+  getDoc
 } from 'firebase/firestore';
 import './App.css';
 
@@ -60,88 +60,16 @@ const defaultFunnelData: FunnelData = {
   textColor: '#333333',
 };
 
-export default function App() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [funnels, setFunnels] = useState<Funnel[]>([]);
-  const [uid, setUid] = useState<string | null>(null);
-  const [entered, setEntered] = useState(false);
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+export default function App({ db }: AppProps) {
+ const [isPasswordVerified, setIsPasswordVerified] = useState<boolean>(
+  localStorage.getItem('passwordVerified') === 'true'
+);
 
-  const auth = getAuth();
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUid(user.uid);
-        setEntered(true);
-      } else {
-        setUid(null);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const handleCheckPassword = async () => {
-    if (password === 'myFunnel888yong') {
-      setIsLoading(true);
-      try {
-        const userCredential = await signInAnonymously(auth);
-        setUid(userCredential.user.uid);
-        setEntered(true);
-      } catch (error: any) {
-        console.error('Anonymous login error:', error);
-        alert(`Anonymous login failed: ${error.message}`);
-      } finally {
-        setIsLoading(false);
-      }
-    } else {
-      alert('❌ Wrong password');
-      setPassword('');
-    }
-  };
-
-  const isEditorPath =
-    location.pathname === '/' || location.pathname.startsWith('/edit/');
-
-  if (isEditorPath && !entered) {
-    return (
-      <div style={{ padding: 40, fontFamily: 'Arial', textAlign: 'center' }}>
-        <h2>🔐 Please enter the access password</h2>
-        <label htmlFor="password" style={{ display: 'block', marginBottom: 10 }}>
-          Password
-        </label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleCheckPassword();
-          }}
-          placeholder="Enter password"
-          style={{ padding: 10, fontSize: 16, marginRight: 10 }}
-          aria-describedby="password-error"
-        />
-        <button
-          onClick={handleCheckPassword}
-          style={{ padding: '10px 20px', fontSize: 16 }}
-          disabled={isLoading}
-        >
-          {isLoading ? 'Loading...' : '进入'}
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <h1>Funnel Editor</h1>
-      {/* 这里放漏斗列表组件 */}
-    </div>
-  );
-}
+const handlePasswordSuccess = () => {
+  localStorage.setItem('passwordVerified', 'true');
+  setIsPasswordVerified(true);
+  signInAnonymously(auth); // 匿名登录
+};
   const navigate = useNavigate();
   const [funnels, setFunnels] = useState<Funnel[]>([]);
   const [uid, setUid] = useState<string | null>(null);
@@ -153,32 +81,31 @@ export default function App() {
     if (password === 'myFunnel888yong') {
       setEntered(true);
     } else {
-      alert('❌ Wrong password, please try again。');
+      alert('❌ 密码错误，请重试。');
     }
   };
 
   // 🔁 获取漏斗数据
   const getFunnels = useCallback(async () => {
-  if (!db || !uid) return; // uid 也要判断
-  const funnelsCollectionRef = collection(db, "funnels");
-  const q = query(funnelsCollectionRef, where("ownerId", "==", uid)); // 加上 ownerId 过滤
-  try {
-    const data = await getDocs(q);
-    const loadedFunnels = data.docs.map((doc) => {
-      const docData = doc.data() as Partial<Funnel>;
-      const funnelWithDefaultData: Funnel = {
-        ...(docData as Funnel),
-        id: doc.id,
-        data: { ...defaultFunnelData, ...docData.data },
-      };
-      return funnelWithDefaultData;
-    });
-    setFunnels(loadedFunnels);
-  } catch (error) {
-    console.error("Error fetching funnels:", error);
-    alert("Failed to load funnels from database.");
-  }
-}, [db, uid]);
+    if (!db) return;
+    const funnelsCollectionRef = collection(db, 'funnels');
+    try {
+      const data = await getDocs(funnelsCollectionRef);
+      const loadedFunnels = data.docs.map((doc) => {
+        const docData = doc.data() as Partial<Funnel>;
+        const funnelWithDefaultData: Funnel = {
+          ...(docData as Funnel),
+          id: doc.id,
+          data: { ...defaultFunnelData, ...docData.data },
+        };
+        return funnelWithDefaultData;
+      });
+      setFunnels(loadedFunnels);
+    } catch (error) {
+      console.error('Error fetching funnels:', error);
+      alert('Failed to load funnels from database.');
+    }
+  }, [db]);
 
   // 🔁 登录并监听 UID
   useEffect(() => {
@@ -229,8 +156,8 @@ export default function App() {
         }
       })
       .catch((error) => {
-        console.error('Anonymous login failed：', error);
-        alert('Anonymous login failed：' + error.message);
+        console.error('匿名登录失败：', error);
+        alert('匿名登录失败：' + error.message);
       });
   }, []);
 
@@ -243,7 +170,6 @@ export default function App() {
         name: name,
         data: defaultFunnelData,
         uid: uid,
-        ownerId: uid,
       });
       alert(`Funnel "${name}" created!`);
       await getFunnels();
@@ -289,7 +215,7 @@ export default function App() {
   if (isEditorPath && !entered) {
     return (
       <div style={{ padding: 40, fontFamily: 'Arial', textAlign: 'center' }}>
-        <h2>🔐 Please enter the access password</h2>
+        <h2>🔐 请输入访问密码</h2>
         <input
           type="password"
           value={password}
