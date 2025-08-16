@@ -10,12 +10,12 @@ import { getFirestore } from 'firebase/firestore';
 
 // Your Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAbh_OpiB1RddfEFkQFGQ-66oNrdi9FLZY",
-  authDomain: "funnel-editor-demo.firebaseapp.com",
-  projectId: "funnel-editor-demo",
-  storageBucket: "funnel-editor-demo.firebasestorage.app",
-  messagingSenderId: "304895960294",
-  appId: "1:304895960294:web:967e2af5dcc0b6cf2e4727"
+  apiKey: 'AIzaSyAbh_OpiB1RddfEFkQFGQ-66oNrdi9FLZY',
+  authDomain: 'funnel-editor-demo.firebaseapp.com',
+  projectId: 'funnel-editor-demo',
+  storageBucket: 'funnel-editor-demo.firebasestorage.app',
+  messagingSenderId: '304895960294',
+  appId: '1:304895960294:web:967e2af5dcc0b6cf2e4727',
   measurementId: 'G-RVRL76REP7',
 };
 
